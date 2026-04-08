@@ -8,8 +8,8 @@ This project demonstrates a **professional ETL pipeline** for YouTube Analytics 
 youtube-databricks-etl/
 │
 ├── notebooks/
-│   ├── 01_setup.ipynb             # Cluster and Spark environment setup
-│   ├── 02_unity_catalog_setup.ipynb # Catalog & schema setup
+│   ├── 01_setup.ipynb             # Cluster and Spark environment & schema setup
+│   ├── 02_bronze_ingestion.ipynb # Catalog  setup
 │
 ├── src/
 │   ├── extract.py                  # YouTube API ingestion
