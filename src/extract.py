@@ -1,5 +1,3 @@
-%pip install google-api-python-client
-dbutils.library.restartPython()
 from googleapiclient.discovery import build
 
 
