@@ -23,7 +23,9 @@ def json_to_df(spark, data) -> DataFrame:
     df = spark.createDataFrame([(json_str,)], ["value"])
     schema = schema_of_json(lit(json_str))
 
-    df = df.select(from_json(col("value"), schema).alias("data")).select("data.*")
+    df = df.select(from_json(col("value"), schema).alias("data"))
+    if isinstance(data, dict):
+        df = df.select("data.*")
 
     return df
 
@@ -152,10 +154,10 @@ def create_channel_analytics(df_channels: DataFrame, df_videos: DataFrame) -> Da
 
 
 # ---------------------------
-#  TRANSFORM VIDEOS
+#  Transform playlist videos
 # ---------------------------
 
-    def transform_videos(spark, videos: list):
+def transform_videos(spark, videos: list):
     """
     Convert playlistItems response → clean video metadata DataFrame
     """
@@ -163,7 +165,7 @@ def create_channel_analytics(df_channels: DataFrame, df_videos: DataFrame) -> Da
 
     from pyspark.sql.functions import explode, col
 
-    df_exploded = df.select(explode("*").alias("item"))
+    df_exploded = df.select(explode(col("data")).alias("item"))
 
     df_flat = df_exploded.select(
         col("item.snippet.resourceId.videoId").alias("video_id"),
@@ -175,3 +177,48 @@ def create_channel_analytics(df_channels: DataFrame, df_videos: DataFrame) -> Da
     )
 
     return df_flat
+
+
+# ---------------------------
+# Transform video statistics
+# ---------------------------
+def transform_video_stats(spark, stats: list):
+    """
+    Convert videos API response → statistics DataFrame
+    """
+    df = json_to_df(spark, stats)
+
+    from pyspark.sql.functions import explode, col
+
+    df_exploded = df.select(explode(col("data")).alias("item"))
+
+    df_stats = df_exploded.select(
+        col("item.id").alias("video_id"),
+        col("item.statistics.viewCount").cast("long").alias("views"),
+        col("item.statistics.likeCount").cast("long").alias("likes"),
+        col("item.statistics.commentCount").cast("long").alias("comments")
+    )
+
+    return df_stats
+
+# ---------------------------
+#Join videos + stats
+# ---------------------------
+
+def enrich_videos(df_videos, df_stats):
+    """
+    Join video metadata with statistics
+    """
+    from pyspark.sql.functions import current_timestamp
+
+    df = df_videos.join(df_stats, on="video_id", how="left")
+
+    df = df.fillna({
+        "views": 0,
+        "likes": 0,
+        "comments": 0
+    })
+
+    df = df.withColumn("ingestion_time", current_timestamp())
+
+    return df
