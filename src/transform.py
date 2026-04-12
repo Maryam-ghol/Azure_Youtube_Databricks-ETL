@@ -86,7 +86,7 @@ def flatten_videos(df: DataFrame) -> DataFrame:
     Flatten playlistItems response into video-level data
     """
     df_exploded = df.select(
-        explode("col").alias("item") if "col" in df.columns else explode("*").alias("item")
+        explode("data").alias("item")
     )
 
     df_flat = df_exploded.select(
@@ -106,7 +106,7 @@ def flatten_video_statistics(df: DataFrame) -> DataFrame:
     Flatten video statistics (views, likes, comments)
     """
     df_exploded = df.select(
-        explode("*").alias("item")
+        explode("data").alias("item")
     )
 
     df_stats = df_exploded.select(

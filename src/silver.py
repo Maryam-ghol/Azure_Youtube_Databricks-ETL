@@ -12,11 +12,21 @@ from src.load import write_delta
 # CHANNELS
 # ---------------------------
 
+from pyspark.sql.window import Window
+from pyspark.sql.functions import row_number, col
+
 def silver_channels(spark, catalog: str):
     df_raw = spark.table(f"{catalog}.bronze.channels_raw")
 
     df = flatten_channels(df_raw)
     df = clean_channels(df)
+
+    # keep latest per channel
+    window = Window.partitionBy("channel_id").orderBy(col("ingestion_time").desc())
+
+    df = df.withColumn("rn", row_number().over(window)) \
+           .filter(col("rn") == 1) \
+           .drop("rn")
 
     write_delta(
         df,
