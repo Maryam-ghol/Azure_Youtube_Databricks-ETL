@@ -7,13 +7,18 @@ from src.transform import (
 )
 from src.load import write_delta
 
+from pyspark.sql.window import Window
+from pyspark.sql.functions import (
+    row_number,
+    col,
+    regexp_extract,
+    when
+)
+
 
 # ---------------------------
 # CHANNELS
 # ---------------------------
-
-from pyspark.sql.window import Window
-from pyspark.sql.functions import row_number, col
 
 def silver_channels(spark, catalog: str):
     df_raw = spark.table(f"{catalog}.bronze.channels_raw")
@@ -21,7 +26,6 @@ def silver_channels(spark, catalog: str):
     df = flatten_channels(df_raw)
     df = clean_channels(df)
 
-    # keep latest per channel
     window = Window.partitionBy("channel_id").orderBy(col("ingestion_time").desc())
 
     df = df.withColumn("rn", row_number().over(window)) \
@@ -52,13 +56,42 @@ def silver_videos(spark, catalog: str):
 
 
 # ---------------------------
-# VIDEO STATS
+# VIDEO STATS (WITH DURATION)
 # ---------------------------
 
 def silver_video_stats(spark, catalog: str):
     df_raw = spark.table(f"{catalog}.bronze.video_stats_raw")
 
     df = flatten_video_statistics(df_raw)
+
+    # ---------------------------
+    # Extract duration (ISO 8601 → seconds)
+    # ---------------------------
+
+    df = df.withColumn(
+        "minutes",
+        regexp_extract("duration", "PT(\\d+)M", 1).cast("int")
+    ).withColumn(
+        "seconds",
+        regexp_extract("duration", "PT\\d*M(\\d+)S", 1).cast("int")
+    )
+
+    df = df.fillna({"minutes": 0, "seconds": 0})
+
+    df = df.withColumn(
+        "duration_sec",
+        col("minutes") * 60 + col("seconds")
+    )
+
+    # ---------------------------
+    # Classification (3 min = 180 sec)
+    # ---------------------------
+
+    df = df.withColumn(
+        "video_type",
+        when(col("duration_sec") <= 180, "short_video")
+        .otherwise("long_video")
+    )
 
     write_delta(
         df,
@@ -73,7 +106,7 @@ def silver_video_stats(spark, catalog: str):
 
 def silver_videos_enriched(spark, catalog: str):
     df_videos = spark.table(f"{catalog}.silver.videos")
-    df_stats = spark.table(f"{catalog}.silver.video_stats").drop("ingestion_time")
+    df_stats = spark.table(f"{catalog}.silver.video_stats")
 
     df = join_video_data(df_videos, df_stats)
 

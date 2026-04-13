@@ -66,13 +66,14 @@ def fetch_playlist_videos(youtube, playlist_id: str):
 
 def fetch_video_statistics(youtube, video_ids: list):
     """
-    Fetch video statistics (views, likes, comments) in batches
+    Fetch video statistics + content details (including duration)
+    in batches of 50 (API limit)
     """
     stats = []
 
     for i in range(0, len(video_ids), 50):
         response = youtube.videos().list(
-            part="statistics",
+            part="statistics,contentDetails",  # ✅ ADD THIS
             id=",".join(video_ids[i:i+50])
         ).execute()
 

@@ -112,6 +112,7 @@ def flatten_video_statistics(df: DataFrame) -> DataFrame:
         col("item.statistics.viewCount").cast("long").alias("views"),
         col("item.statistics.likeCount").cast("long").alias("likes"),
         col("item.statistics.commentCount").cast("long").alias("comments"),
+        col("item.statistics.duration").alias("duration"),
         col("ingestion_time")  
     )
 
