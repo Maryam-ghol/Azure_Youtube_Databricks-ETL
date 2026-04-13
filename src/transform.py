@@ -102,18 +102,17 @@ def flatten_videos(df: DataFrame) -> DataFrame:
 
 
 def flatten_video_statistics(df: DataFrame) -> DataFrame:
-    """
-    Flatten video statistics (views, likes, comments)
-    """
     df_exploded = df.select(
-        explode("data").alias("item")
+        explode("items").alias("item"),
+        "ingestion_time"
     )
 
     df_stats = df_exploded.select(
         col("item.id").alias("video_id"),
         col("item.statistics.viewCount").cast("long").alias("views"),
         col("item.statistics.likeCount").cast("long").alias("likes"),
-        col("item.statistics.commentCount").cast("long").alias("comments")
+        col("item.statistics.commentCount").cast("long").alias("comments"),
+        col("ingestion_time")  
     )
 
     return df_stats
