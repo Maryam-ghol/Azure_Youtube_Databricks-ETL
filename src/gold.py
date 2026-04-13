@@ -5,7 +5,8 @@ from pyspark.sql.functions import (
     avg,
     max,
     desc,
-    current_timestamp
+    current_timestamp,
+    try_divide
 )
 from src.load import write_delta
 
@@ -49,7 +50,7 @@ def gold_video_performance(spark, catalog: str):
 
     df = df.withColumn(
         "engagement_rate",
-        (col("likes") + col("comments")) / col("views")
+        try_divide(col("likes") + col("comments"), col("views"))
     )
 
     df = df.withColumn("ingestion_time", current_timestamp())
