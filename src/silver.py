@@ -73,7 +73,7 @@ def silver_video_stats(spark, catalog: str):
 
 def silver_videos_enriched(spark, catalog: str):
     df_videos = spark.table(f"{catalog}.silver.videos")
-    df_stats = spark.table(f"{catalog}.silver.video_stats")
+    df_stats = spark.table(f"{catalog}.silver.video_stats").drop("ingestion_time")
 
     df = join_video_data(df_videos, df_stats)
 

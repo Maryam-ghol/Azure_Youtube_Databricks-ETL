@@ -1,0 +1,87 @@
+from pyspark.sql.functions import (
+    col,
+    count,
+    sum,
+    avg,
+    max,
+    desc,
+    current_timestamp
+)
+from src.load import write_delta
+
+
+# ---------------------------
+# CHANNEL SUMMARY
+# ---------------------------
+
+def gold_channel_summary(spark, catalog: str):
+    df_channels = spark.table(f"{catalog}.silver.channels")
+    df_videos = spark.table(f"{catalog}.silver.videos_enriched")
+
+    df_agg = df_videos.groupBy("channel_id", "channel_title").agg(
+        count("video_id").alias("total_videos"),
+        sum("views").alias("total_views"),
+        avg("views").alias("avg_views_per_video"),
+        max("published_at").alias("latest_video_date")
+    )
+
+    df_final = df_agg.join(
+        df_channels.select("channel_id", "subscribers"),
+        on="channel_id",
+        how="left"
+    )
+
+    df_final = df_final.withColumn("ingestion_time", current_timestamp())
+
+    write_delta(
+        df_final,
+        f"{catalog}.gold.channel_summary",
+        mode="overwrite"
+    )
+
+
+# ---------------------------
+# VIDEO PERFORMANCE
+# ---------------------------
+
+def gold_video_performance(spark, catalog: str):
+    df = spark.table(f"{catalog}.silver.videos_enriched")
+
+    df = df.withColumn(
+        "engagement_rate",
+        (col("likes") + col("comments")) / col("views")
+    )
+
+    df = df.withColumn("ingestion_time", current_timestamp())
+
+    write_delta(
+        df,
+        f"{catalog}.gold.video_performance",
+        mode="overwrite"
+    )
+
+
+# ---------------------------
+# TOP VIDEOS
+# ---------------------------
+
+def gold_top_videos(spark, catalog: str, top_n: int = 10):
+    df = spark.table(f"{catalog}.gold.video_performance")
+
+    df_top = df.orderBy(desc("views")).limit(top_n)
+
+    write_delta(
+        df_top,
+        f"{catalog}.gold.top_videos",
+        mode="overwrite"
+    )
+
+
+# ---------------------------
+# FULL GOLD PIPELINE
+# ---------------------------
+
+def run_gold_pipeline(spark, catalog: str):
+    gold_channel_summary(spark, catalog)
+    gold_video_performance(spark, catalog)
+    gold_top_videos(spark, catalog)

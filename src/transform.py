@@ -83,7 +83,7 @@ def clean_channels(df: DataFrame) -> DataFrame:
 
 def flatten_videos(df: DataFrame) -> DataFrame:
     df_exploded = df.select(
-        explode("items").alias("item"),
+        explode("data").alias("item"),
         "ingestion_time"
     )
 
@@ -103,7 +103,7 @@ def flatten_videos(df: DataFrame) -> DataFrame:
 
 def flatten_video_statistics(df: DataFrame) -> DataFrame:
     df_exploded = df.select(
-        explode("items").alias("item"),
+        explode("data").alias("item"),
         "ingestion_time"
     )
 

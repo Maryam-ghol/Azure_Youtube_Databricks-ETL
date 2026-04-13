@@ -16,6 +16,7 @@ def write_delta(
     df.write \
         .format("delta") \
         .mode(mode) \
+        .option("overwriteSchema", "true") \
         .saveAsTable(table_name)
 
 
