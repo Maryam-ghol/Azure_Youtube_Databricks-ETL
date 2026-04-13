@@ -82,11 +82,9 @@ def clean_channels(df: DataFrame) -> DataFrame:
 # ---------------------------
 
 def flatten_videos(df: DataFrame) -> DataFrame:
-    """
-    Flatten playlistItems response into video-level data
-    """
     df_exploded = df.select(
-        explode("data").alias("item")
+        explode("items").alias("item"),
+        "ingestion_time"
     )
 
     df_flat = df_exploded.select(
@@ -95,7 +93,9 @@ def flatten_videos(df: DataFrame) -> DataFrame:
         col("item.snippet.publishedAt").alias("published_at"),
         col("item.snippet.description").alias("description"),
         col("item.snippet.channelId").alias("channel_id"),
-        col("item.snippet.channelTitle").alias("channel_title")
+        col("item.snippet.channelTitle").alias("channel_title"),
+        col("item.snippet.playlistId").alias("playlist_id"),
+        col("ingestion_time")   
     )
 
     return df_flat
