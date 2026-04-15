@@ -61,6 +61,21 @@ def gold_video_performance(spark, catalog: str):
         mode="overwrite"
     )
 
+# ---------------------------
+# VIDEO PERFORMANCE BY TYPE
+# ---------------------------
+
+def gold_video_performance_by_type(spark, catalog: str):
+    df = spark.table(f"{catalog}.gold.video_performance")
+
+    df_short = df.filter(col("video_type") == "short_video")
+    df_long = df.filter(col("video_type") == "long_video")
+
+    write_delta(df_short, f"{catalog}.gold.video_performance_short", mode="overwrite")
+    write_delta(df_long, f"{catalog}.gold.video_performance_long", mode="overwrite")
+
+
+
 
 # ---------------------------
 # TOP VIDEOS
