@@ -94,6 +94,26 @@ def gold_top_videos(spark, catalog: str, top_n: int = 10):
 
 
 # ---------------------------
+# TOP VIDEOS BY TYPE
+# ---------------------------
+
+def gold_top_videos_by_type(spark, catalog: str, top_n: int = 10):
+    df = spark.table(f"{catalog}.gold.video_performance")
+
+    df_short = df.filter(col("video_type") == "short_video") \
+                 .orderBy(desc("views")) \
+                 .limit(top_n)
+
+    df_long = df.filter(col("video_type") == "long_video") \
+                .orderBy(desc("views")) \
+                .limit(top_n)
+
+    write_delta(df_short, f"{catalog}.gold.top_short_videos", mode="overwrite")
+    write_delta(df_long, f"{catalog}.gold.top_long_videos", mode="overwrite")
+
+
+
+# ---------------------------
 # FULL GOLD PIPELINE
 # ---------------------------
 
