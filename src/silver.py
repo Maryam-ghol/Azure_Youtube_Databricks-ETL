@@ -101,13 +101,30 @@ def silver_video_stats(spark, catalog: str):
 
 
 # ---------------------------
+#for duplicated videos
+# ---------------------------
+
+from pyspark.sql.window import Window
+from pyspark.sql.functions import row_number, col
+
+def deduplicate_videos(df):
+    window = Window.partitionBy("video_id").orderBy(col("ingestion_time").desc())
+
+    df = df.withColumn("rn", row_number().over(window)) \
+           .filter(col("rn") == 1) \
+           .drop("rn")
+
+    return df
+
+# ---------------------------
 # ENRICHED VIDEOS
 # ---------------------------
 
 def silver_videos_enriched(spark, catalog: str):
     df_videos = spark.table(f"{catalog}.silver.videos")
     df_stats = spark.table(f"{catalog}.silver.video_stats")
-
+    df_videos = deduplicate_videos(df_videos)
+    df_stats = deduplicate_videos(df_stats)
     df = join_video_data(df_videos, df_stats)
 
     write_delta(

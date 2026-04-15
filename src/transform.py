@@ -201,6 +201,7 @@ def transform_video_stats(spark, stats: list):
 
     return df_stats
 
+
 # ---------------------------
 #Join videos + stats
 # ---------------------------
