@@ -112,6 +112,29 @@ def gold_top_videos_by_type(spark, catalog: str, top_n: int = 10):
     write_delta(df_long, f"{catalog}.gold.top_long_videos", mode="overwrite")
 
 
+# ---------------------------
+#  VIDEOS  TYPE SUMMARY
+# ---------------------------
+
+def gold_video_type_summary(spark, catalog: str):
+    df = spark.table(f"{catalog}.silver.videos_enriched")
+
+    df_summary = df.groupBy("video_type").agg(
+        count("video_id").alias("total_videos"),
+        sum("views").alias("total_views"),
+        avg("views").alias("avg_views"),
+        avg(try_divide(col("likes") + col("comments"), col("views"))).alias("avg_engagement")
+    )
+
+    df_summary = df_summary.withColumn("ingestion_time", current_timestamp())
+
+    write_delta(
+        df_summary,
+        f"{catalog}.gold.video_type_summary",
+        mode="overwrite"
+    )
+
+
 
 # ---------------------------
 # FULL GOLD PIPELINE
