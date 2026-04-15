@@ -112,7 +112,7 @@ def flatten_video_statistics(df: DataFrame) -> DataFrame:
         col("item.statistics.viewCount").cast("long").alias("views"),
         col("item.statistics.likeCount").cast("long").alias("likes"),
         col("item.statistics.commentCount").cast("long").alias("comments"),
-        col("item.statistics.duration").alias("duration"),
+        col("item.contentDetails.duration").alias("duration"),
         col("ingestion_time")  
     )
 
@@ -123,7 +123,7 @@ def join_video_data(df_videos: DataFrame, df_stats: DataFrame) -> DataFrame:
     """
     Join video metadata with statistics
     """
-    return df_videos.join(df_stats, on="video_id", how="left")
+    return df_videos.join(df_stats.drop("ingestion_time"), on="video_id", how="left")
 
 
 # ---------------------------

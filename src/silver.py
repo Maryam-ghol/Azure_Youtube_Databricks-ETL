@@ -70,10 +70,10 @@ def silver_video_stats(spark, catalog: str):
 
     df = df.withColumn(
         "minutes",
-        regexp_extract("duration", "PT(\\d+)M", 1).cast("int")
+        regexp_extract("duration", "PT(\\d+)M", 1).try_cast("int")
     ).withColumn(
         "seconds",
-        regexp_extract("duration", "PT\\d*M(\\d+)S", 1).cast("int")
+        regexp_extract("duration", "PT\\d*M(\\d+)S", 1).try_cast("int")
     )
 
     df = df.fillna({"minutes": 0, "seconds": 0})
