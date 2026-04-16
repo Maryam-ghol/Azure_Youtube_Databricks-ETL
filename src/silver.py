@@ -47,6 +47,7 @@ def silver_videos(spark, catalog: str):
     df_raw = spark.table(f"{catalog}.bronze.videos_raw")
 
     df = flatten_videos(df_raw)
+    df = deduplicate_videos(df)
 
     write_delta(
         df,
@@ -63,6 +64,7 @@ def silver_video_stats(spark, catalog: str):
     df_raw = spark.table(f"{catalog}.bronze.video_stats_raw")
 
     df = flatten_video_statistics(df_raw)
+    df = deduplicate_videos(df)
 
     # ---------------------------
     # Extract duration (ISO 8601 → seconds)
@@ -89,8 +91,8 @@ def silver_video_stats(spark, catalog: str):
 
     df = df.withColumn(
         "video_type",
-        when(col("duration_sec") <= 180, "short_video")
-        .otherwise("long_video")
+       when(col("duration_sec") < 180, "short_video")
+       .otherwise("long_video")
     )
 
     write_delta(
@@ -98,6 +100,7 @@ def silver_video_stats(spark, catalog: str):
         f"{catalog}.silver.video_stats",
         mode="overwrite"
     )
+   
 
 
 # ---------------------------
@@ -106,13 +109,30 @@ def silver_video_stats(spark, catalog: str):
 
 from pyspark.sql.window import Window
 from pyspark.sql.functions import row_number, col
+from pyspark.sql.functions import greatest
+from pyspark.sql.functions import lower, trim
 
 def deduplicate_videos(df):
-    window = Window.partitionBy("video_id").orderBy(col("ingestion_time").desc())
+    
+
+    if "stats_ingestion_time" in df.columns:
+        df = df.withColumn(
+            "latest_time",
+            greatest(col("ingestion_time"), col("stats_ingestion_time"))
+        )
+    else:
+        df = df.withColumn("latest_time", col("ingestion_time"))
+
+    window = Window.partitionBy("video_id").orderBy(col("latest_time").desc())
 
     df = df.withColumn("rn", row_number().over(window)) \
-           .filter(col("rn") == 1) \
-           .drop("rn")
+        .filter(col("rn") == 1) \
+        .drop("rn", "latest_time")
+    
+    
+
+    if "video_type" in df.columns:
+        df = df.withColumn("video_type", lower(trim(col("video_type"))))
 
     return df
 
@@ -120,20 +140,35 @@ def deduplicate_videos(df):
 # ENRICHED VIDEOS
 # ---------------------------
 
+from pyspark.sql.window import Window
+from pyspark.sql.functions import row_number, col
+
 def silver_videos_enriched(spark, catalog: str):
     df_videos = spark.table(f"{catalog}.silver.videos")
-    df_stats = spark.table(f"{catalog}.silver.video_stats")
-    df_videos = deduplicate_videos(df_videos)
-    df_stats = deduplicate_videos(df_stats)
+
+    df_stats = spark.table(f"{catalog}.silver.video_stats") \
+        .withColumnRenamed("ingestion_time", "stats_ingestion_time")
+
     df = join_video_data(df_videos, df_stats)
+
+    from pyspark.sql.functions import greatest
+
+    df = df.withColumn(
+        "latest_time",
+        greatest(col("ingestion_time"), col("stats_ingestion_time"))
+    )
+
+    window = Window.partitionBy("video_id").orderBy(col("latest_time").desc())
+
+    df = df.withColumn("rn", row_number().over(window)) \
+           .filter(col("rn") == 1) \
+           .drop("rn", "latest_time")
 
     write_delta(
         df,
         f"{catalog}.silver.videos_enriched",
         mode="overwrite"
     )
-
-
 # ---------------------------
 # FULL SILVER PIPELINE
 # ---------------------------
