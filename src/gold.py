@@ -139,8 +139,9 @@ def gold_video_type_summary(spark, catalog: str):
 # ---------------------------
 # FULL GOLD PIPELINE
 # ---------------------------
-
 def run_gold_pipeline(spark, catalog: str):
     gold_channel_summary(spark, catalog)
     gold_video_performance(spark, catalog)
-    gold_top_videos(spark, catalog)
+    gold_video_performance_by_type(spark, catalog)
+    gold_top_videos_by_type(spark, catalog)
+    gold_video_type_summary(spark, catalog)
