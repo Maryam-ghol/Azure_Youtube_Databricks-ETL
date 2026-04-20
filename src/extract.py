@@ -1,6 +1,7 @@
 from googleapiclient.discovery import build
 
 
+
 def get_youtube_client(api_key: str):
     """
     Initialize YouTube API client
@@ -40,14 +41,17 @@ def get_uploads_playlist_id(youtube, channel_id: str):
 # VIDEO DATA
 # ---------------------------
 
+from datetime import datetime, timezone, timedelta
+
 def fetch_playlist_videos(youtube, playlist_id: str):
-    """
-    Fetch all videos from a playlist (handles pagination)
-    """
+
+    cutoff_date = datetime.now(timezone.utc) - timedelta(days=90)
+
     videos = []
     next_page_token = None
+    stop_fetching = False
 
-    while True:
+    while not stop_fetching:
         response = youtube.playlistItems().list(
             part="snippet,contentDetails",
             playlistId=playlist_id,
@@ -55,7 +59,25 @@ def fetch_playlist_videos(youtube, playlist_id: str):
             pageToken=next_page_token
         ).execute()
 
-        videos.extend(response["items"])
+        items = response.get("items", [])
+
+        for v in items:
+            published_at = v["snippet"].get("publishedAt")
+
+            if not published_at:
+                continue
+
+            published_dt = datetime.fromisoformat(
+                published_at.replace("Z", "+00:00")
+            )
+
+            # stop condition (older than cutoff)
+            if published_dt < cutoff_date:
+                stop_fetching = True
+                break
+
+            videos.append(v)
+
         next_page_token = response.get("nextPageToken")
 
         if not next_page_token:
