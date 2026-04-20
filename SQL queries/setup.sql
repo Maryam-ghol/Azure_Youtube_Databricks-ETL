@@ -1,6 +1,4 @@
--- Use this script only once for the first time to create the catalog and schemas
-
-CREATE CATALOG IF NOT EXISTS workspace_yt_mar;
+-- Use this script only once for the first time to create the schemas. It uses the default catalog
 
 CREATE SCHEMA IF NOT EXISTS workspace_yt_mar.bronze;
 CREATE SCHEMA IF NOT EXISTS workspace_yt_mar.silver;
